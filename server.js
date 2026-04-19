@@ -114,4 +114,38 @@ app.post('/api/chat', async (req, res) => {
       })
     });
 
-    const data
+    const data = await response.json();
+
+    if (data.error || !data.choices || !data.choices[0]) {
+      return res.json({ reply: 'Error OpenRouter: ' + (data.error?.message || 'Sin respuesta') });
+    }
+
+    res.json({ reply: data.choices[0].message.content });
+
+  } catch (error) {
+    res.status(500).json({ reply: 'Error: ' + error.message });
+  }
+});
+
+// =========================
+// 🤖 Quiniela
+// =========================
+app.post("/api/quiniela", (req, res) => {
+  try {
+    const { texto } = req.body;
+    const lineas = texto.split("\\n").filter(l => l.includes("vs")).slice(0, 15);
+    let resultados = [];
+    for (let linea of lineas) {
+      const [local, visitante] = linea.split("vs").map(t => t.trim());
+      const analisis = analizarPartido(local, visitante);
+      resultados.push(analisis);
+    }
+    res.json({ resultados });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`XIA CLEAN corriendo en puerto ${PORT}`);
+});
