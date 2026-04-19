@@ -51,8 +51,11 @@ app.post('/api/chat', async (req, res) => {
 // 🌐 Frontend: XIA CLEAN APP
 // =========================
 app.get("/", (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XIA CLEAN</title>
+  <style>
+    body {
