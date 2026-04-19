@@ -1,104 +1,88 @@
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
+import http from "http";
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.AI_API_KEY;
+const PROVIDER = process.env.AI_PROVIDER || "groq";
 
-const PORT = 3000;
-
-// 🔑 Pega tu API KEY de OpenRouter aquí
-const OPENROUTER_API_KEY = "PON_AQUI_TU_API_KEY";
-
-// 🔥 FUNCIÓN QUINIELA
-function calcularProb(nl, nv){
-  let diff = nl - nv;
-  let pL, pE, pV;
-
-  if(diff >= 2){
-    pL = 65; pE = 20; pV = 15;
-  } else if(diff <= -2){
-    pV = 65; pE = 20; pL = 15;
-  } else {
-    pL = 40 + diff*5;
-    pV = 40 - diff*5;
-    pE = 20;
-  }
-
-  return {pL, pE, pV};
+function send(res, code, data, type = "application/json") {
+  res.writeHead(code, { "Content-Type": type });
+  res.end(type === "application/json" ? JSON.stringify(data) : data);
 }
 
-// Ruta de prueba
-app.get("/", (req, res) => {
-  res.send("XIA CLEAN funcionando");
-});
+async function callGroq(message) {
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama3-70b-8192",
+      messages: [
+        { role: "system", content: "Eres una IA clara, directa y útil." },
+        { role: "user", content: message }
+      ]
+    })
+  });
+  const j = await r.json();
+  return j.choices?.[0]?.message?.content || "Sin respuesta";
+}
 
-// Ruta de chat
-app.post("/chat", async (req, res) => {
-  try {
-    const userMessage = req.body.message;
+async function callTogether(message) {
+  const r = await fetch("https://api.together.xyz/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "meta-llama/Llama-3-70b-chat-hf",
+      messages: [
+        { role: "system", content: "Eres una IA clara, directa y útil." },
+        { role: "user", content: message }
+      ]
+    })
+  });
+  const j = await r.json();
+  return j.choices?.[0]?.message?.content || "Sin respuesta";
+}
 
-    // 🔥 DETECTOR DE QUINIELA
-    if(userMessage.toLowerCase().includes("vs")){
-
-      const partidos = userMessage.split("\n").filter(p => p.includes("vs"));
-
-      const resultado = partidos.map(p => {
-        const [local, visita] = p.split("vs").map(x => x.trim());
-
-        // niveles base (puedes mejorar después)
-        const nivelLocal = 3;
-        const nivelVisita = 3;
-
-        const { pL, pE, pV } = calcularProb(nivelLocal, nivelVisita);
-
-        let ganador = "Empate";
-        if(pL > pV && pL > pE) ganador = local;
-        if(pV > pL && pV > pE) ganador = visita;
-
-        return `${local} vs ${visita}
-${local}: ${pL}% | Empate: ${pE}% | ${visita}: ${pV}%
-👉 ${ganador}`;
-      });
-
-      return res.json({ reply: resultado.join("\n\n") });
-    }
-
-    // 🤖 SI NO ES QUINIELA → IA NORMAL
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "Eres Shia, una IA experta, directa, precisa y también capaz de programar código correctamente."
-          },
-          {
-            role: "user",
-            content: userMessage
-          }
-        ]
-      })
-    });
-
-    const data = await response.json();
-
-    const reply = data.choices?.[0]?.message?.content || "Sin respuesta";
-
-    res.json({ reply });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error en el servidor" });
+const server = http.createServer(async (req, res) => {
+  // Health check
+  if (req.method === "GET" && req.url === "/") {
+    return send(res, 200, "IA corriendo", "text/plain");
   }
+
+  // Chat endpoint
+  if (req.method === "POST" && req.url === "/chat") {
+    let body = "";
+    req.on("data", c => (body += c.toString()));
+    req.on("end", async () => {
+      try {
+        if (!API_KEY) return send(res, 500, { error: "Falta AI_API_KEY" });
+
+        const { message } = JSON.parse(body || "{}");
+        if (!message) return send(res, 400, { error: "Falta 'message'" });
+
+        let reply;
+        if (PROVIDER === "together") {
+          reply = await callTogether(message);
+        } else {
+          reply = await callGroq(message); // default
+        }
+
+        return send(res, 200, { reply });
+      } catch (e) {
+        return send(res, 500, { error: "Error interno" });
+      }
+    });
+    return;
+  }
+
+  // 404
+  return send(res, 404, { error: "Not found" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("Servidor en puerto " + PORT);
 });
