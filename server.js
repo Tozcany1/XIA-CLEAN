@@ -89,6 +89,30 @@ app.get("/", (req, res) => {
 });
 
 // =========================
+// 🤖 Endpoint de Chat con IA
+// =========================
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'mistralai/mistral-7b-instruct',
+        messages: [{ role: 'user', content: message }]
+      })
+    });
+    const data = await response.json();
+    res.json({ reply: data.choices[0].message.content });
+  } catch (error) {
+    res.status(500).json({ reply: 'Error: ' + error.message });
+  }
+});
+
+// =========================
 // 🤖 Quiniela
 // =========================
 app.post("/api/quiniela", (req, res) => {
@@ -98,4 +122,15 @@ app.post("/api/quiniela", (req, res) => {
     let resultados = [];
     for (let linea of lineas) {
       const [local, visitante] = linea.split("vs").map(t => t.trim());
-      const analisis = analizarPartido(local, visitante
+      const analisis = analizarPartido(local, visitante);
+      resultados.push(analisis);
+    }
+    res.json({ resultados });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`XIA CLEAN corriendo en puerto ${PORT}`);
+});
