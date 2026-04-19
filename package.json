@@ -1,7 +1,7 @@
 {
   "name": "xia-clean",
-  "version": "1.0.0",
-  "description": "XIA CLEAN - IA con tus reglas",
+  "version": "69.420.0",
+  "description": "XIA CLEAN - La IA más perra de todo México 🇲🇽🔥",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18.0.0"
