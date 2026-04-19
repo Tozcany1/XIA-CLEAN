@@ -94,19 +94,33 @@ app.get("/", (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.json({ reply: 'Error: Falta la OPENAI_API_KEY en Railway.' });
+    }
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://xia-clean-production-bd57.up.railway.app',
+        'X-Title': 'XIA CLEAN'
       },
       body: JSON.stringify({
         model: 'mistralai/mistral-7b-instruct',
         messages: [{ role: 'user', content: message }]
       })
     });
+
     const data = await response.json();
+
+    if (data.error ||!data.choices ||!data.choices[0]) {
+      return res.json({ reply: 'Error OpenRouter: ' + (data.error?.message || 'Sin respuesta') });
+    }
+
     res.json({ reply: data.choices[0].message.content });
+
   } catch (error) {
     res.status(500).json({ reply: 'Error: ' + error.message });
   }
