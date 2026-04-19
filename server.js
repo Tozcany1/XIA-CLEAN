@@ -11,6 +11,24 @@ const PORT = 3000;
 // 🔑 Pega tu API KEY de OpenRouter aquí
 const OPENROUTER_API_KEY = "PON_AQUI_TU_API_KEY";
 
+// 🔥 FUNCIÓN QUINIELA
+function calcularProb(nl, nv){
+  let diff = nl - nv;
+  let pL, pE, pV;
+
+  if(diff >= 2){
+    pL = 65; pE = 20; pV = 15;
+  } else if(diff <= -2){
+    pV = 65; pE = 20; pL = 15;
+  } else {
+    pL = 40 + diff*5;
+    pV = 40 - diff*5;
+    pE = 20;
+  }
+
+  return {pL, pE, pV};
+}
+
 // Ruta de prueba
 app.get("/", (req, res) => {
   res.send("XIA CLEAN funcionando");
@@ -21,6 +39,33 @@ app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
 
+    // 🔥 DETECTOR DE QUINIELA
+    if(userMessage.toLowerCase().includes("vs")){
+
+      const partidos = userMessage.split("\n").filter(p => p.includes("vs"));
+
+      const resultado = partidos.map(p => {
+        const [local, visita] = p.split("vs").map(x => x.trim());
+
+        // niveles base (puedes mejorar después)
+        const nivelLocal = 3;
+        const nivelVisita = 3;
+
+        const { pL, pE, pV } = calcularProb(nivelLocal, nivelVisita);
+
+        let ganador = "Empate";
+        if(pL > pV && pL > pE) ganador = local;
+        if(pV > pL && pV > pE) ganador = visita;
+
+        return `${local} vs ${visita}
+${local}: ${pL}% | Empate: ${pE}% | ${visita}: ${pV}%
+👉 ${ganador}`;
+      });
+
+      return res.json({ reply: resultado.join("\n\n") });
+    }
+
+    // 🤖 SI NO ES QUINIELA → IA NORMAL
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -32,7 +77,7 @@ app.post("/chat", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "Eres una IA inteligente, clara, directa y útil."
+            content: "Eres Shia, una IA experta, directa, precisa y también capaz de programar código correctamente."
           },
           {
             role: "user",
